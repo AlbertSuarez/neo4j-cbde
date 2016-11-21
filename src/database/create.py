@@ -1,6 +1,12 @@
+from neo4jrestclient.client import GraphDatabase
+from src.database.inserts import inserts
+
+
 def create():
     print('Creation: START')
 
-    # TODO Insert some nodes in graph database
+    db = GraphDatabase("http://localhost:7474",
+                       username="neo4j",
+                       password="neo4j")
 
-    print('Creation: END\n')
+    return inserts(db)

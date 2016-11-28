@@ -3,15 +3,25 @@ import datetime
 import time
 
 
+# Drop all data
 def drop(session):
     session.run("MATCH (n) DETACH DELETE n")
 
 
+# Print all data
+def print_all(session):
+    print('The program have inserted the following nodes:')
+    for item in session.run('MATCH (n) RETURN n'):
+        print(item)
+
+
+# Create a part node with parameters specified
 def create_part(session, identifier, partkey, mfgr, type, size):
     session.run("CREATE (" + identifier + ":Part {partkey:'" + partkey +
                 "', mfgr:'" + mfgr + "', type: '" + type + "', size: " + size + "})")
 
 
+# Create a supplier node with parameters specified
 def create_supplier(session, identifier, suppkey, name, accbal, adress, phone, comment, n_name, r_name):
     session.run("CREATE (" + identifier + ":Supplier {suppkey: '" + suppkey +
                 "', name: '" + name + "', accbal: " + accbal + ", adress: '" + adress +
@@ -19,12 +29,14 @@ def create_supplier(session, identifier, suppkey, name, accbal, adress, phone, c
                 "', n_name: '" + n_name + "', r_name: '" + r_name + "'})")
 
 
+# Create an order node with parameters specified
 def create_order(session, identifier, orderkey, orderdate, shippriority, c_marketsegment, n_name):
     session.run("CREATE (" + identifier + ":Order {orderkey: '" + orderkey + "', orderdate: {date}, shippriority:'" +
                 shippriority + "', c_marketsegment: '" + c_marketsegment + "', n_name: '" + n_name + "'})",
                 {"date": orderdate})
 
 
+# Create a line item node with parameters specified
 def create_lineitem(session, identifier, orderkey, suppkey, returnflag, quantity,
                     extendedPrice, discount, tax, shipdate, linestatus):
     session.run("CREATE (" + identifier + ":LineItem {orderkey: '" + orderkey +
@@ -33,24 +45,28 @@ def create_lineitem(session, identifier, orderkey, suppkey, returnflag, quantity
                 ", shipdate: {date2}, linestatus: '" + linestatus + "'})", {"date2": shipdate})
 
 
+# Create a edge between supplier and part nodes specified in parameters
 def create_edge_supplier_part(session, supplier, suppkey, part, partkey, supplycost):
     session.run(
         "MATCH (" + supplier + ":Supplier {suppkey: '" + suppkey + "'}), (" + part + ":Part {partkey: '" + partkey +
         "'}) CREATE (" + supplier + ")-[:ps {supplycost: ['" + supplycost + "']}]->(" + part + ")")
 
 
+# Create a edge between order and line item nodes specified in parameters
 def create_edge_order_lineitem(session, order, orderkey, lineitem):
     session.run("MATCH (" + order + ":Order {orderkey: '" + orderkey + "'}), (" + lineitem +
                 ":LineItem {orderkey: '" + orderkey + "'}) CREATE (" + order + ")-[:has]->(" + lineitem + ")")
 
 
+# Create a edge between line item and supplier nodes specified in parameters
 def create_edge_lineitem_supplier(session, lineitem, supplier, suppkey):
     session.run("MATCH (" + lineitem + ":LineItem {suppkey: '" + suppkey + "'}), (" + supplier +
                 ":Supplier {suppkey: '" + suppkey + "'}) CREATE (" + lineitem + ")-[:isFrom]->(" + supplier + ")")
 
 
+# Insert some data in database
 def inserts(db):
-    print('Inserts: START')
+    print('Starting inserts...')
     session = db.session()
 
     date = datetime.datetime(2016, 11, 24)
@@ -64,7 +80,8 @@ def inserts(db):
     create_part(session, 'p3', '3', 'cccc', 'C', '5')
     create_part(session, 'p4', '4', 'dddd', 'D', '2')
     create_supplier(session, 's1', 's1', 'supp1', '1.00', 'Main Street', '111111', 'nothing', 'Spain', 'Barcelona')
-    create_supplier(session, 's2', 's2', 'supp2', '2.00', 'Main Street 2', '2222222 ', 'nothing 2', 'Spain', 'Barcelona')
+    create_supplier(session, 's2', 's2', 'supp2', '2.00', 'Main Street 2', '2222222 ', 'nothing 2', 'Spain',
+                    'Barcelona')
     create_order(session, 'o1', 'o1', timestamp, '1', 'MKT1', 'Spain')
     create_order(session, 'o2', 'o2', timestamp, '2', 'MKT1', 'Spain')
     create_lineitem(session, 'l1', 'o1', 's1', 'a', '10', '10.0', '0.1', '2.0', timestamp2, 'a')
@@ -87,10 +104,13 @@ def inserts(db):
     create_edge_lineitem_supplier(session, 'l1', 's1', 's1')
     create_edge_lineitem_supplier(session, 'l2', 's2', 's2')
 
+    print_all(session)
+    print('Finish inserts!\n')
     session.close()
     return db
 
 
+# Create the neo4j database
 def create():
     print('Create and connect with Database')
 
@@ -98,22 +118,35 @@ def create():
     return inserts(db)
 
 
+# Query 1 code
 def query1(db):
-    print('Query 1')
+    print('Query 1 starting...')
+
+    print()
 
 
+# Query 2 code
 def query2(db):
-    print('Query 2')
+    print('Query 2 starting...')
+
+    print()
 
 
+# Query 3 code
 def query3(db):
-    print('Query 3')
+    print('Query 3 starting...')
+
+    print()
 
 
+# Query 4 code
 def query4(db):
-    print('Query 4')
+    print('Query 4 starting...')
+
+    print()
 
 
+# Main function
 def run():
     print('Neo4J Laboratory\n')
     db = create()
@@ -121,6 +154,7 @@ def run():
     query2(db)
     query3(db)
     query4(db)
+    print('THE END')
 
 
 if __name__ == '__main__':

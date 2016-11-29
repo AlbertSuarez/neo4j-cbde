@@ -177,8 +177,48 @@ def query3(db):
 
 
 # Query 4 code
-def query4(db):
+def query4(db, region, date):
     print('Query 4 starting...')
+
+    result = db.session().run(" MATCH " +
+                              "      ( o:Order ) - [:has] -> ( li:LineItem ) - [:isFrom] -> ( s:Supplier )" +
+                              " WHERE " +
+                              "      s.r_name = " + region + " and "
+                              "      o.orderdate >= " + region + ", "
+                              " WITH " +
+                              "      li.returnflag                                    AS l_returnflag, " +
+                              "      li.linestatus                                    AS l_linestatus, " +
+                              "      SUM(li.quantity)                                 AS sum_qty, " +
+                              "      SUM(li.extendedPrice)                            AS sum_base_price, " +
+                              "      SUM(li.extendedPrice*(1-li.discount))            AS sum_disc_price, " +
+                              "      SUM(li.extendedPrice*(1-li.discount)*(1+li.tax)) AS sum_charge, " +
+                              "      AVG(li.quantity)                                 AS avg_qty, " +
+                              "      AVG(li.extendedPrice)                            AS avg_price, " +
+                              "      AVG(li.discount)                                 AS avg_disc, " +
+                              "      COUNT(*)                                         AS count_order " +
+                              " RETURN " +
+                              "      l_returnflag, " +
+                              "      l_linestatus, " +
+                              "      sum_qty, " +
+                              "      sum_base_price, " +
+                              "      sum_disc_price, " +
+                              "      sum_charge, " +
+                              "      avg_qty, " +
+                              "      avg_price, " +
+                              "      avg_disc, " +
+                              "      count_order " +
+                              " ORDER BY " +
+                              "      l_returnflag, " +
+                              "      l_linestatus ",
+                              {"date": time.mktime(date.timetuple())})
+
+    i = 0
+    for item in result:
+        i += 1
+        print(item)
+
+    if i == 0:
+        print("No results for first query")
 
     print()
 
@@ -190,7 +230,7 @@ def run():
     query1(db, datetime.datetime(2016, 11, 28))
     query2(db)
     query3(db)
-    query4(db)
+    query4(db, "Barcelona", datetime.datetime(2016, 11, 28))
     print('THE END')
 
 

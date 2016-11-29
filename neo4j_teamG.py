@@ -45,8 +45,6 @@ def inserts(db):
     session.run("MATCH (l1:LineItem {suppkey: 's1'}), (s1:Supplier {suppkey: 's1'}) CREATE (l1)-[:isFrom]->(s1)")
     session.run("MATCH (l2:LineItem {suppkey: 's2'}), (s2:Supplier {suppkey: 's2'}) CREATE (l2)-[:isFrom]->(s2)")
 
-   
-
     session.close()
     
 

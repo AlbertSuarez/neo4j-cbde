@@ -3,81 +3,233 @@ import datetime
 import time
 
 
+# Drop all data
+def drop(session):
+    session.run("MATCH (n) DETACH DELETE n")
+
+
+# Print all data
+def print_all(session):
+    print('The program have inserted the following nodes:')
+    for item in session.run('MATCH (n) RETURN n'):
+        print(item)
+
+
+# Create a part node with parameters specified
+def create_part(session, identifier, partkey, mfgr, type, size):
+    session.run("CREATE (" + identifier + ":Part {partkey:'" + partkey +
+                "', mfgr:'" + mfgr + "', type: '" + type + "', size: " + size + "})")
+
+
+# Create a supplier node with parameters specified
+def create_supplier(session, identifier, suppkey, name, accbal, adress, phone, comment, n_name, r_name):
+    session.run("CREATE (" + identifier + ":Supplier {suppkey: '" + suppkey +
+                "', name: '" + name + "', accbal: " + accbal + ", adress: '" + adress +
+                "', phone: '" + phone + "', comment: '" + comment +
+                "', n_name: '" + n_name + "', r_name: '" + r_name + "'})")
+
+
+# Create an order node with parameters specified
+def create_order(session, identifier, orderkey, orderdate, shippriority, c_marketsegment, n_name):
+    session.run("CREATE (" + identifier + ":Order {orderkey: '" + orderkey + "', orderdate: {date}, shippriority:'" +
+                shippriority + "', c_marketsegment: '" + c_marketsegment + "', n_name: '" + n_name + "'})",
+                {"date": orderdate})
+
+
+# Create a line item node with parameters specified
+def create_lineitem(session, identifier, orderkey, suppkey, returnflag, quantity,
+                    extendedPrice, discount, tax, shipdate, linestatus):
+    session.run("CREATE (" + identifier + ":LineItem {orderkey: '" + orderkey +
+                "', suppkey: '" + suppkey + "', returnflag: '" + returnflag + "', quantity: " + quantity +
+                ", extendedPrice: " + extendedPrice + ", discount: " + discount + ", tax: " + tax +
+                ", shipdate: {date2}, linestatus: '" + linestatus + "'})", {"date2": shipdate})
+
+
+# Create a edge between supplier and part nodes specified in parameters
+def create_edge_supplier_part(session, supplier, suppkey, part, partkey, supplycost):
+    session.run(
+        "MATCH (" + supplier + ":Supplier {suppkey: '" + suppkey + "'}), (" + part + ":Part {partkey: '" + partkey +
+        "'}) CREATE (" + supplier + ")-[:ps {supplycost: {suppcost} }]->(" + part + ")", 
+        {"suppcost": supplycost})
+
+
+# Create a edge between order and line item nodes specified in parameters
+def create_edge_order_lineitem(session, order, orderkey, lineitem):
+    session.run("MATCH (" + order + ":Order {orderkey: '" + orderkey + "'}), (" + lineitem +
+                ":LineItem {orderkey: '" + orderkey + "'}) CREATE (" + order + ")-[:has]->(" + lineitem + ")")
+
+
+# Create a edge between line item and supplier nodes specified in parameters
+def create_edge_lineitem_supplier(session, lineitem, supplier, suppkey):
+    session.run("MATCH (" + lineitem + ":LineItem {suppkey: '" + suppkey + "'}), (" + supplier +
+                ":Supplier {suppkey: '" + suppkey + "'}) CREATE (" + lineitem + ")-[:isFrom]->(" + supplier + ")")
+
+
+# Insert some data in database
 def inserts(db):
-    print('Inserts: START')
+    print('Starting inserts...')
     session = db.session()
 
-    date = datetime.datetime(2016,11,24)
-    date2 = datetime.datetime(2016,11,25)
+    date = datetime.datetime(2016, 11, 24)
+    date2 = datetime.datetime(2016, 11, 25)
     timestamp = time.mktime(date.timetuple())
     timestamp2 = time.mktime(date2.timetuple())
 
-    session.run("MATCH (n) DETACH DELETE n")
-    # 4 port 2 supplier 6 lineitem 2 orders
-    session.run("CREATE (p1:Part {partkey:'1', mfgr:'aaaa', type: 'A', size: 10})")
-    session.run("CREATE (p2:Part {partkey:'2', mfgr:'bbbb', type: 'B', size: 15})")
-    session.run("CREATE (p3:Part {partkey:'3', mfgr:'aaaa', type: 'A', size: 5})")
-    session.run("CREATE (p4:Part {partkey:'4', mfgr:'cccc', type: 'C', size: 2})")
-    session.run("CREATE (s1:Supplier {suppkey: 's1', name: 'supp1', accbal: 1.00, adress: 'Main Street', phone: '111111111', comment: 'nothing', n_name: 'Spain', r_name: 'Barcelona'})")
-    session.run("CREATE (s2:Supplier {suppkey: 's2', name: 'supp2', accbal: 2.00, adress: 'Main Street2', phone: '222222222', comment: 'nothing2', n_name: 'Spain', r_name: 'Barcelona'})")
-    session.run("CREATE (o1:Order {orderkey: 'o1', orderdate: {date}, shippriority:'1', c_marketsegment: 'MKT1', n_name: 'Spain'})", {"date" : timestamp })
-    session.run("CREATE (o2:Order {orderkey: 'o2',orderdate: {date}, shippriority:'2', c_marketsegment: 'MKT1', n_name: 'Spain'})", {"date" : timestamp })
-    session.run("CREATE (l1:LineItem {orderkey: 'o1', suppkey: 's1', returnflag: 'a', quantity: 10, extendedPrice: 10.0, discount: 0.1, tax: 2.0, shipdate: {date2}, linestatus: 'a'})", {"date2" : timestamp2})
-    session.run("CREATE (l2:LineItem {orderkey: 'o1', suppkey: 's1', returnflag: 'a', quantity: 5, extendedPrice: 18.0, discount: 0.5, tax: 3.0, shipdate: {date2}, linestatus: 'a'})", {"date2" : timestamp2})
-    session.run("CREATE (l3:LineItem {orderkey: 'o1', suppkey: 's1', returnflag: 'a', quantity: 5, extendedPrice: 5.0, discount: 0.05, tax: 1.0, shipdate: {date2}, linestatus: 'a'})", {"date2" : timestamp2})
-    session.run("CREATE (l4:LineItem {orderkey: 'o2', suppkey: 's2', returnflag: 'b', quantity: 10, extendedPrice: 20.0, discount: 0.3, tax: 3.0, shipdate: {date2}, linestatus: 'b'})", {"date2" : timestamp2})
-    session.run("CREATE (l5:LineItem {orderkey: 'o2', suppkey: 's2', returnflag: 'b', quantity: 20, extendedPrice: 40.0, discount: 0.5, tax: 1.0, shipdate: {date2}, linestatus: 'b'})", {"date2" : timestamp2})
-    session.run("CREATE (l6:LineItem {orderkey: 'o2', suppkey: 's2', returnflag: 'b', quantity: 5, extendedPrice: 10.0, discount: 0.2, tax: 2.0, shipdate: {date2}, linestatus: 'b'})", {"date2" : timestamp2})
-    
-    #ARESTES
-    session.run("MATCH (s1:Supplier {suppkey: 's1'}), (p1:Part {partkey: '1'}) CREATE (s1)-[:ps {supplycost: ['10']}]->(p1)")
-    session.run("MATCH (s1:Supplier {suppkey: 's1'}), (p2:Part {partkey: '2'}) CREATE (s1)-[:ps {supplycost: ['20']}]->(p2)")
-    session.run("MATCH (s1:Supplier {suppkey: 's1'}), (p3:Part {partkey: '3'}) CREATE (s1)-[:ps {supplycost: ['30']}]->(p3)")
-    session.run("MATCH (s1:Supplier {suppkey: 's1'}), (p4:Part {partkey: '4'}) CREATE (s1)-[:ps {supplycost: ['40']}]->(p4)")
-    session.run("MATCH (s2:Supplier {suppkey: 's2'}), (p1:Part {partkey: '1'}) CREATE (s2)-[:ps {supplycost: ['5']}]->(p1)")
-    session.run("MATCH (s2:Supplier {suppkey: 's2'}), (p2:Part {partkey: '2'}) CREATE (s2)-[:ps {supplycost: ['10']}]->(p2)")
-    session.run("MATCH (s2:Supplier {suppkey: 's2'}), (p3:Part {partkey: '3'}) CREATE (s2)-[:ps {supplycost: ['15']}]->(p3)")
-    session.run("MATCH (s2:Supplier {suppkey: 's2'}), (p4:Part {partkey: '4'}) CREATE (s2)-[:ps {supplycost: ['20']}]->(p4)")
+    drop(session)
+    create_part(session, 'p1', '1', 'aaaa', 'A', '10')
+    create_part(session, 'p2', '2', 'bbbb', 'B', '15')
+    create_part(session, 'p3', '3', 'cccc', 'C', '5')
+    create_part(session, 'p4', '4', 'dddd', 'D', '2')
+    create_supplier(session, 's1', 's1', 'supp1', '1.00', 'Main Street', '111111', 'nothing', 'Spain', 'Barcelona')
+    create_supplier(session, 's2', 's2', 'supp2', '2.00', 'Main Street 2', '2222222 ', 'nothing 2', 'Spain',
+                    'Barcelona')
+    create_order(session, 'o1', 'o1', timestamp, '1', 'MKT1', 'Spain')
+    create_order(session, 'o2', 'o2', timestamp, '2', 'MKT1', 'Spain')
+    create_lineitem(session, 'l1', 'o1', 's1', 'a', '10', '10.0', '0.1', '2.0', timestamp2, 'a')
+    create_lineitem(session, 'l2', 'o1', 's1', 'a', '5', '18.0', '0.5', '3.0', timestamp2, 'a')
+    create_lineitem(session, 'l3', 'o1', 's1', 'a', '5', '5.0', '0.05', '1.0', timestamp2, 'a')
+    create_lineitem(session, 'l4', 'o2', 's2', 'b', '10', '20.0', '0.3', '3.0', timestamp2, 'b')
+    create_lineitem(session, 'l5', 'o2', 's2', 'b', '20', '40.0', '0.5', '1.0', timestamp2, 'b')
+    create_lineitem(session, 'l6', 'o2', 's2', 'b', '5', '10.0', '0.2', '2.0', timestamp2, 'b')
 
-    session.run("MATCH (o1:Order {orderkey: 'o1'}), (l1:LineItem {orderkey: 'o1'}) CREATE (o1)-[:has]->(l1)")
-    session.run("MATCH (o2:Order {orderkey: 'o2'}), (l4:LineItem {orderkey: 'o2'}) CREATE (o2)-[:has]->(l4)")
+    create_edge_supplier_part(session, 's1', 's1', 'p1', '1', 10)
+    create_edge_supplier_part(session, 's1', 's1', 'p2', '2', 20)
+    create_edge_supplier_part(session, 's1', 's1', 'p3', '3', 30)
+    create_edge_supplier_part(session, 's1', 's1', 'p4', '4', 40)
+    create_edge_supplier_part(session, 's2', 's2', 'p1', '1', 5)
+    create_edge_supplier_part(session, 's2', 's2', 'p2', '2', 10)
+    create_edge_supplier_part(session, 's2', 's2', 'p3', '3', 15)
+    create_edge_supplier_part(session, 's2', 's2', 'p4', '4', 20)
+    create_edge_order_lineitem(session, 'o1', 'o1', 'l1')
+    create_edge_order_lineitem(session, 'o2', 'o2', 'l4')
+    create_edge_lineitem_supplier(session, 'l1', 's1', 's1')
+    create_edge_lineitem_supplier(session, 'l2', 's2', 's2')
 
-    session.run("MATCH (l1:LineItem {suppkey: 's1'}), (s1:Supplier {suppkey: 's1'}) CREATE (l1)-[:isFrom]->(s1)")
-    session.run("MATCH (l2:LineItem {suppkey: 's2'}), (s2:Supplier {suppkey: 's2'}) CREATE (l2)-[:isFrom]->(s2)")
+    print_all(session)
+    print('Finish inserts!\n')
 
     session.close()
-    
+    return db
 
+
+# Create the neo4j database
 def create():
-    print('Creation: START')
+    print('Create and connect with Database')
 
     db = GraphDatabase.driver("bolt://localhost", auth=basic_auth("neo4j", "neo4j"))
     return inserts(db)
 
 
-def query1(db):
-    print('Query 1')
+# Query 1 code
+def query1(db, date):
+    print('Query 1 starting...')
+    result = db.session().run(" MATCH " +
+                              "      ( li:LineItem ) " +
+                              " WHERE " +
+                              "      li.shipdate <= {date} " +
+                              " WITH " +
+                              "      li.returnflag                                    AS l_returnflag, " +
+                              "      li.linestatus                                    AS l_linestatus, " +
+                              "      SUM(li.quantity)                                 AS sum_qty, " +
+                              "      SUM(li.extendedPrice)                            AS sum_base_price, " +
+                              "      SUM(li.extendedPrice*(1-li.discount))            AS sum_disc_price, " +
+                              "      SUM(li.extendedPrice*(1-li.discount)*(1+li.tax)) AS sum_charge, " +
+                              "      AVG(li.quantity)                                 AS avg_qty, " +
+                              "      AVG(li.extendedPrice)                            AS avg_price, " +
+                              "      AVG(li.discount)                                 AS avg_disc, " +
+                              "      COUNT(*)                                         AS count_order " +
+                              " RETURN " +
+                              "      l_returnflag, " +
+                              "      l_linestatus, " +
+                              "      sum_qty, " +
+                              "      sum_base_price, " +
+                              "      sum_disc_price, " +
+                              "      sum_charge, " +
+                              "      avg_qty, " +
+                              "      avg_price, " +
+                              "      avg_disc, " +
+                              "      count_order " +
+                              " ORDER BY " +
+                              "      l_returnflag, " +
+                              "      l_linestatus ",
+                              {"date": time.mktime(date.timetuple())})
+
+    i = 0
+    for item in result:
+        i += 1
+        print(item)
+
+    if i == 0:
+        print("No results for first query")
+    print()
 
 
-def query2(db):
-    print('Query 2')
+# Query 2 code
+def query2(db, region, type, size):
+    print('Query 2 starting...')
+    subquery = db.session().run("MATCH (su: Supplier)-[res:ps]->()" +
+                                "WHERE su.r_name = {region} " + 
+                                "RETURN MIN(res.supplycost) ",
+                                {"region": region})
+
+    i = 0
+
+    for item in subquery:
+        i += 1
+        mincost = item['MIN(res.supplycost)']
+    
+    result = db.session().run("MATCH (su: Supplier)-[res:ps]->(p1: Part) " +
+                              "WHERE p1.size = {size} " +
+                              " AND p1.type = {type} " +
+                              " AND res.supplycost = {suppcost} " +
+                              "RETURN " +
+                              "     su.accbal , " +
+                              "     su.name , " +
+                              "     su.n_name , " +
+                              "     p1.partkey , " + 
+                              "     p1.mfgr , " + 
+                              "     su.adress , " +
+                              "     su.phone , " +
+                              "     su.comment " +
+                              "ORDER BY " +
+                              "     su.accbal , " +
+                              "     su.n_name , " +
+                              "     p1.partkey ",
+                              {"size": size, "type": type, "suppcost": mincost})
+    i = 0
+    for item in result:
+        i += 1
+        print(item)
+
+    if i == 0:
+        print("No results for second query")
+    
+    print()
 
 
+# Query 3 code
 def query3(db):
-    print('Query 3')
+    print('Query 3 starting...')
+
+    print()
 
 
+# Query 4 code
 def query4(db):
-    print('Query 4')
+    print('Query 4 starting...')
+
+    print()
 
 
+# Main function
 def run():
     print('Neo4J Laboratory\n')
     db = create()
-    query1(db)
-    query2(db)
+    query1(db, datetime.datetime(2016, 11, 28))
+    query2(db, 'Barcelona','A', 10)
     query3(db)
     query4(db)
+    print('THE END')
 
 
 if __name__ == '__main__':

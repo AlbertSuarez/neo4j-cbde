@@ -49,7 +49,7 @@ def create_lineitem(session, identifier, orderkey, suppkey, returnflag, quantity
 def create_edge_supplier_part(session, supplier, suppkey, part, partkey, supplycost):
     session.run(
         "MATCH (" + supplier + ":Supplier {suppkey: '" + suppkey + "'}), (" + part + ":Part {partkey: '" + partkey +
-        "'}) CREATE (" + supplier + ")-[:ps {supplycost: {suppcost} }]->(" + part + ")", 
+        "'}) CREATE (" + supplier + ")-[:ps {supplycost: {suppcost} }]->(" + part + ")",
         {"suppcost": supplycost})
 
 
@@ -150,8 +150,8 @@ def query1(db, date):
                               "      avg_disc, " +
                               "      count_order " +
                               " ORDER BY " +
-                              "      l_returnflag, " +
-                              "      l_linestatus ",
+                              "      l_returnflag       ASC, " +
+                              "      l_linestatus       ASC ",
                               {"date": time.mktime(date.timetuple())})
 
     i = 0
@@ -167,36 +167,38 @@ def query1(db, date):
 # Query 2 code
 def query2(db, region, type, size):
     print('Query 2 starting...')
-    subquery = db.session().run("MATCH (su: Supplier)-[res:ps]->()" +
-                                "WHERE su.r_name = {region} " + 
-                                "RETURN MIN(res.supplycost) ",
-                                {"region": region})
+    subquery_result = db.session().run(" MATCH " +
+                                       "    (su: Supplier)-[res:ps]->() " +
+                                       " WHERE " +
+                                       "    su.r_name = {region} " +
+                                       " RETURN " +
+                                       "    MIN(res.supplycost) ",
+                                       {"region": region})
 
-    i = 0
+    global min_cost
+    for item in subquery_result:
+        min_cost = item['MIN(res.supplycost)']
 
-    for item in subquery:
-        i += 1
-        #print(item)
-        mincost = item['MIN(res.supplycost)']
-    
-    result = db.session().run("MATCH (su: Supplier)-[res:ps]->(p1: Part) " +
-                              "WHERE p1.size = {size} " +
-                              " AND p1.type = {type} " +
-                              " AND res.supplycost = {suppcost} " +
-                              "RETURN " +
-                              "     su.accbal AS s_accbal, " +
-                              "     su.name AS s_name, " +
-                              "     su.n_name AS n_name, " +
-                              "     p1.partkey AS p_partkey, " + 
-                              "     p1.mfgr AS p_mfgr, " + 
-                              "     su.adress AS s_adress, " +
-                              "     su.phone AS s_phone, " +
-                              "     su.comment AS s_comment " +
-                              "ORDER BY " +
-                              "     su.accbal DESC, " +
-                              "     su.n_name , " +
-                              "     p1.partkey ",
-                              {"size": size, "type": type, "suppcost": mincost})
+    result = db.session().run(" MATCH " +
+                              "     (su: Supplier)-[res:ps]->(p1: Part) " +
+                              " WHERE " +
+                              "     p1.size = {size} AND " +
+                              "     p1.type = {type} AND " +
+                              "     res.supplycost = {suppcost} " +
+                              " RETURN " +
+                              "     su.accbal   AS s_accbal, " +
+                              "     su.name     AS s_name, " +
+                              "     su.n_name   AS n_name, " +
+                              "     p1.partkey  AS p_partkey, " +
+                              "     p1.mfgr     AS p_mfgr, " +
+                              "     su.adress   AS s_adress, " +
+                              "     su.phone    AS s_phone, " +
+                              "     su.comment  AS s_comment " +
+                              " ORDER BY " +
+                              "     su.accbal   DESC, " +
+                              "     su.n_name   ASC, " +
+                              "     p1.partkey  ASC ",
+                              {"size": size, "type": type, "suppcost": min_cost})
     i = 0
     for item in result:
         i += 1
@@ -204,37 +206,36 @@ def query2(db, region, type, size):
 
     if i == 0:
         print("No results for second query")
-    
+
     print()
 
 
 # Query 3 code
 def query3(db, date1, date2, segment):
     print('Query 3 starting...')
-    # orderdate  datetime.datetime(2016, 11, 24)
-    # shipdates  datetime.datetime(2016, 11, 25)
-    result = db.session().run(" MATCH (o1:Order)-[:has]->(l1:LineItem) " +
+    result = db.session().run(" MATCH " +
+                              "     (o1:Order)-[:has]->(l1:LineItem) " +
                               " WHERE " +
-                              "      l1.shipdate > {date2} " +
-                              "      AND o1.orderdate < {date1} " +
-                              "      AND o1.c_marketsegment = {segment} " +
-                              "      AND o1.orderkey = l1.orderkey"
+                              "     l1.shipdate > {date2} AND " +
+                              "     o1.orderdate < {date1} AND " +
+                              "     o1.c_marketsegment = {segment} AND " +
+                              "     o1.orderkey = l1.orderkey "
                               " WITH " +
                               "      l1.orderkey                                   AS l_orderkey, " +
-                              "      SUM(l1.extendedPrice*(1-l1.discount))         AS revenue, " +
                               "      o1.orderdate                                  AS o_orderdate, " +
-                              "      o1.shippriority                               As o_shippriority " +
+                              "      o1.shippriority                               As o_shippriority, " +
+                              "      SUM(l1.extendedPrice*(1-l1.discount))         AS revenue " +
                               " RETURN " +
                               "      l_orderkey, " +
-                              "      revenue, " +
                               "      o_orderdate, " +
-                              "      o_shippriority " +
+                              "      o_shippriority, " +
+                              "      revenue " +
                               " ORDER BY " +
-                              "      revenue DESC, " +
-                              "      o_orderdate ",
-                              {"date1": time.mktime(date1.timetuple()), 
-                              "date2": time.mktime(date2.timetuple()),
-                              "segment": segment})
+                              "      revenue        DESC, " +
+                              "      o_orderdate    ASC ",
+                              {"date1": time.mktime(date1.timetuple()),
+                               "date2": time.mktime(date2.timetuple()),
+                               "segment": segment})
 
     i = 0
     for item in result:
@@ -254,8 +255,8 @@ def query4(db, region, date):
                               "      ( o:Order ) - [:has] -> ( li:LineItem ) - [:isFrom] -> ( s:Supplier )" +
                               " WHERE " +
                               "      s.r_name = " + region + " and "
-                              "      o.orderdate >= " + region + ", "
-                              " WITH " +
+                                                             "      o.orderdate >= " + region + ", "
+                                                                                                " WITH " +
                               "      li.returnflag                                    AS l_returnflag, " +
                               "      li.linestatus                                    AS l_linestatus, " +
                               "      SUM(li.quantity)                                 AS sum_qty, " +
@@ -288,18 +289,18 @@ def query4(db, region, date):
         print(item)
 
     if i == 0:
-        print("No results for first query")
+        print("No results for fourth query")
 
     print()
 
 
-# Main functiond 
+# Main function
 def run():
     print('Neo4J Laboratory\n')
     db = create()
     query1(db, datetime.datetime(2016, 11, 28))
-    query2(db, 'Barcelona','A', 10)
-    query3(db, datetime.datetime(2016, 11, 28), datetime.datetime(2016,11,20), 'MKT1')
+    query2(db, 'Barcelona', 'A', 10)
+    query3(db, datetime.datetime(2016, 11, 28), datetime.datetime(2016, 11, 20), 'MKT1')
     # query4(db, "Barcelona", datetime.datetime(2016, 11, 28))
     print('THE END')
 

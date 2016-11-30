@@ -176,7 +176,7 @@ def query2(db, region, type, size):
 
     for item in subquery:
         i += 1
-        print(item)
+        #print(item)
         mincost = item['MIN(res.supplycost)']
     
     result = db.session().run("MATCH (su: Supplier)-[res:ps]->(p1: Part) " +
@@ -184,16 +184,16 @@ def query2(db, region, type, size):
                               " AND p1.type = {type} " +
                               " AND res.supplycost = {suppcost} " +
                               "RETURN " +
-                              "     su.accbal , " +
-                              "     su.name , " +
-                              "     su.n_name , " +
-                              "     p1.partkey , " + 
-                              "     p1.mfgr , " + 
-                              "     su.adress , " +
-                              "     su.phone , " +
-                              "     su.comment " +
+                              "     su.accbal AS s_accbal, " +
+                              "     su.name AS s_name, " +
+                              "     su.n_name AS n_name, " +
+                              "     p1.partkey AS p_partkey, " + 
+                              "     p1.mfgr AS p_mfgr, " + 
+                              "     su.adress AS s_adress, " +
+                              "     su.phone AS s_phone, " +
+                              "     su.comment AS s_comment " +
                               "ORDER BY " +
-                              "     su.accbal , " +
+                              "     su.accbal DESC, " +
                               "     su.n_name , " +
                               "     p1.partkey ",
                               {"size": size, "type": type, "suppcost": mincost})
@@ -211,11 +211,14 @@ def query2(db, region, type, size):
 # Query 3 code
 def query3(db, date1, date2, segment):
     print('Query 3 starting...')
-    result = db.session().run(" MATCH (o1:order)-[:has]->(l1:LineItem) " +
+    # orderdate  datetime.datetime(2016, 11, 24)
+    # shipdates  datetime.datetime(2016, 11, 25)
+    result = db.session().run(" MATCH (o1:Order)-[:has]->(l1:LineItem) " +
                               " WHERE " +
                               "      l1.shipdate > {date2} " +
                               "      AND o1.orderdate < {date1} " +
-                              "      AND o1.c_marketsegment = {segment}"
+                              "      AND o1.c_marketsegment = {segment} " +
+                              "      AND o1.orderkey = l1.orderkey"
                               " WITH " +
                               "      l1.orderkey                                   AS l_orderkey, " +
                               "      SUM(l1.extendedPrice*(1-l1.discount))         AS revenue, " +
@@ -256,7 +259,7 @@ def run():
     db = create()
     query1(db, datetime.datetime(2016, 11, 28))
     query2(db, 'Barcelona','A', 10)
-    query3(db, datetime.datetime(2016, 11, 25), datetime.datetime(2016,11,26), "MKT1")
+    query3(db, datetime.datetime(2016, 11, 28), datetime.datetime(2016,11,20), 'MKT1')
     query4(db)
     print('THE END')
 

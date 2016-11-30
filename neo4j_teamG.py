@@ -49,7 +49,8 @@ def create_lineitem(session, identifier, orderkey, suppkey, returnflag, quantity
 def create_edge_supplier_part(session, supplier, suppkey, part, partkey, supplycost):
     session.run(
         "MATCH (" + supplier + ":Supplier {suppkey: '" + suppkey + "'}), (" + part + ":Part {partkey: '" + partkey +
-        "'}) CREATE (" + supplier + ")-[:ps {supplycost: ['" + supplycost + "']}]->(" + part + ")")
+        "'}) CREATE (" + supplier + ")-[:ps {supplycost: {suppcost} }]->(" + part + ")", 
+        {"suppcost": supplycost})
 
 
 # Create a edge between order and line item nodes specified in parameters
@@ -91,14 +92,14 @@ def inserts(db):
     create_lineitem(session, 'l5', 'o2', 's2', 'b', '20', '40.0', '0.5', '1.0', timestamp2, 'b')
     create_lineitem(session, 'l6', 'o2', 's2', 'b', '5', '10.0', '0.2', '2.0', timestamp2, 'b')
 
-    create_edge_supplier_part(session, 's1', 's1', 'p1', '1', '10')
-    create_edge_supplier_part(session, 's1', 's1', 'p2', '2', '20')
-    create_edge_supplier_part(session, 's1', 's1', 'p3', '3', '30')
-    create_edge_supplier_part(session, 's1', 's1', 'p4', '4', '40')
-    create_edge_supplier_part(session, 's2', 's2', 'p1', '1', '50')
-    create_edge_supplier_part(session, 's2', 's2', 'p2', '2', '10')
-    create_edge_supplier_part(session, 's2', 's2', 'p3', '3', '15')
-    create_edge_supplier_part(session, 's2', 's2', 'p4', '4', '20')
+    create_edge_supplier_part(session, 's1', 's1', 'p1', '1', 10)
+    create_edge_supplier_part(session, 's1', 's1', 'p2', '2', 20)
+    create_edge_supplier_part(session, 's1', 's1', 'p3', '3', 30)
+    create_edge_supplier_part(session, 's1', 's1', 'p4', '4', 40)
+    create_edge_supplier_part(session, 's2', 's2', 'p1', '1', 5)
+    create_edge_supplier_part(session, 's2', 's2', 'p2', '2', 10)
+    create_edge_supplier_part(session, 's2', 's2', 'p3', '3', 15)
+    create_edge_supplier_part(session, 's2', 's2', 'p4', '4', 20)
     create_edge_order_lineitem(session, 'o1', 'o1', 'l1')
     create_edge_order_lineitem(session, 'o2', 'o2', 'l4')
     create_edge_lineitem_supplier(session, 'l1', 's1', 's1')
@@ -106,6 +107,7 @@ def inserts(db):
 
     print_all(session)
     print('Finish inserts!\n')
+
     session.close()
     return db
 
@@ -163,16 +165,84 @@ def query1(db, date):
 
 
 # Query 2 code
-def query2(db):
+def query2(db, region, type, size):
     print('Query 2 starting...')
+    subquery = db.session().run("MATCH (su: Supplier)-[res:ps]->()" +
+                                "WHERE su.r_name = {region} " + 
+                                "RETURN MIN(res.supplycost) ",
+                                {"region": region})
 
+    i = 0
+
+    for item in subquery:
+        i += 1
+        #print(item)
+        mincost = item['MIN(res.supplycost)']
+    
+    result = db.session().run("MATCH (su: Supplier)-[res:ps]->(p1: Part) " +
+                              "WHERE p1.size = {size} " +
+                              " AND p1.type = {type} " +
+                              " AND res.supplycost = {suppcost} " +
+                              "RETURN " +
+                              "     su.accbal AS s_accbal, " +
+                              "     su.name AS s_name, " +
+                              "     su.n_name AS n_name, " +
+                              "     p1.partkey AS p_partkey, " + 
+                              "     p1.mfgr AS p_mfgr, " + 
+                              "     su.adress AS s_adress, " +
+                              "     su.phone AS s_phone, " +
+                              "     su.comment AS s_comment " +
+                              "ORDER BY " +
+                              "     su.accbal DESC, " +
+                              "     su.n_name , " +
+                              "     p1.partkey ",
+                              {"size": size, "type": type, "suppcost": mincost})
+    i = 0
+    for item in result:
+        i += 1
+        print(item)
+
+    if i == 0:
+        print("No results for second query")
+    
     print()
 
 
 # Query 3 code
-def query3(db):
+def query3(db, date1, date2, segment):
     print('Query 3 starting...')
+    # orderdate  datetime.datetime(2016, 11, 24)
+    # shipdates  datetime.datetime(2016, 11, 25)
+    result = db.session().run(" MATCH (o1:Order)-[:has]->(l1:LineItem) " +
+                              " WHERE " +
+                              "      l1.shipdate > {date2} " +
+                              "      AND o1.orderdate < {date1} " +
+                              "      AND o1.c_marketsegment = {segment} " +
+                              "      AND o1.orderkey = l1.orderkey"
+                              " WITH " +
+                              "      l1.orderkey                                   AS l_orderkey, " +
+                              "      SUM(l1.extendedPrice*(1-l1.discount))         AS revenue, " +
+                              "      o1.orderdate                                  AS o_orderdate, " +
+                              "      o1.shippriority                               As o_shippriority " +
+                              " RETURN " +
+                              "      l_orderkey, " +
+                              "      revenue, " +
+                              "      o_orderdate, " +
+                              "      o_shippriority " +
+                              " ORDER BY " +
+                              "      revenue DESC, " +
+                              "      o_orderdate ",
+                              {"date1": time.mktime(date1.timetuple()), 
+                              "date2": time.mktime(date2.timetuple()),
+                              "segment": segment})
 
+    i = 0
+    for item in result:
+        i += 1
+        print(item)
+
+    if i == 0:
+        print("No results for third query")
     print()
 
 
@@ -223,14 +293,14 @@ def query4(db, region, date):
     print()
 
 
-# Main function
+# Main functiond 
 def run():
     print('Neo4J Laboratory\n')
     db = create()
     query1(db, datetime.datetime(2016, 11, 28))
-    query2(db)
-    query3(db)
-    query4(db, "Barcelona", datetime.datetime(2016, 11, 28))
+    query2(db, 'Barcelona','A', 10)
+    query3(db, datetime.datetime(2016, 11, 28), datetime.datetime(2016,11,20), 'MKT1')
+    # query4(db, "Barcelona", datetime.datetime(2016, 11, 28))
     print('THE END')
 
 

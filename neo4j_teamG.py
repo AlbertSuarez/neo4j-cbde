@@ -120,6 +120,20 @@ def create():
     return inserts(db)
 
 
+# Create indexes
+def indexes(db):
+    print('Creating indexes...')
+    session = db.session()
+
+    session.run("CREATE INDEX ON :LineItem(shipdate)")
+    session.run("CREATE INDEX ON :Order(orderdate)")
+
+    print('Indexes created!')
+    session.close()
+
+    print()
+
+
 # Query 1 code
 def query1(db, date):
     print('Query 1 starting...')
@@ -288,6 +302,7 @@ def query4(db, region, date):
 def run():
     print('Neo4J Laboratory\n')
     db = create()
+    indexes(db)
     query1(db, date=datetime.datetime(2016, 11, 28))
     query2(db, region='Barcelona', type='A', size=10)
     query3(db, date1=datetime.datetime(2016, 11, 28), date2=datetime.datetime(2016, 11, 20), segment='MKT1')

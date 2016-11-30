@@ -176,6 +176,7 @@ def query2(db, region, type, size):
 
     for item in subquery:
         i += 1
+        print(item)
         mincost = item['MIN(res.supplycost)']
     
     result = db.session().run("MATCH (su: Supplier)-[res:ps]->(p1: Part) " +
@@ -208,9 +209,37 @@ def query2(db, region, type, size):
 
 
 # Query 3 code
-def query3(db):
+def query3(db, date1, date2, segment):
     print('Query 3 starting...')
+    result = db.session().run(" MATCH (o1:order)-[:has]->(l1:LineItem) " +
+                              " WHERE " +
+                              "      l1.shipdate > {date2} " +
+                              "      AND o1.orderdate < {date1} " +
+                              "      AND o1.c_marketsegment = {segment}"
+                              " WITH " +
+                              "      l1.orderkey                                   AS l_orderkey, " +
+                              "      SUM(l1.extendedPrice*(1-l1.discount))         AS revenue, " +
+                              "      o1.orderdate                                  AS o_orderdate, " +
+                              "      o1.shippriority                               As o_shippriority " +
+                              " RETURN " +
+                              "      l_orderkey, " +
+                              "      revenue, " +
+                              "      o_orderdate, " +
+                              "      o_shippriority " +
+                              " ORDER BY " +
+                              "      revenue DESC, " +
+                              "      o_orderdate ",
+                              {"date1": time.mktime(date1.timetuple()), 
+                              "date2": time.mktime(date2.timetuple()),
+                              "segment": segment})
 
+    i = 0
+    for item in result:
+        i += 1
+        print(item)
+
+    if i == 0:
+        print("No results for third query")
     print()
 
 
@@ -221,13 +250,13 @@ def query4(db):
     print()
 
 
-# Main function
+# Main functiond 
 def run():
     print('Neo4J Laboratory\n')
     db = create()
     query1(db, datetime.datetime(2016, 11, 28))
     query2(db, 'Barcelona','A', 10)
-    query3(db)
+    query3(db, datetime.datetime(2016, 11, 25), datetime.datetime(2016,11,26), "MKT1")
     query4(db)
     print('THE END')
 
